@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            margin: 0;
+            background-color: black;
+        }
+        * {
+            box-sizing: border-box;
+        }
+        .container {
+            width: 500px;
+            margin: 0 auto;
+        }
+        .arrow {
+            stroke: red;
+            stroke-width: 2;
+            marker-end: url(#arrow);
+        }
+        .reverseArrow {
+            stroke: red;
+            stroke-width: 2;
+            marker-start: url(#arrow);
+        }
+        text {
+            font-size: 24px;
+            fill: white;
+            text-anchor: middle;
+            dominant-baseline: middle;
+        }
+       
+        .modal {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            visibility: hidden;
+            transform: scale(1.1);
+            transition: visibility 0s linear 0.25s, opacity 0.25s 0s, transform 0.25s;
+        }
+
+        .modal-content {
+            position: absolute;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 10px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 1rem 1.5rem;
+            width: 24rem;
+            border-radius: 0.5rem;
+        }
+
+        .close-button {
+            float: right;
+            width: 1.5rem;
+            line-height: 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 0.25rem;
+            background-color: lightgray;
+        }
+
+        .close-button:hover {
+            background-color: darkgray;
+        }
+
+        .show-modal {
+            opacity: 1;
+            visibility: visible;
+            transform: scale(1.0);
+            transition: visibility 0s linear 0s, opacity 0.25s 0s, transform 0.25s;
+        }
+
+        .btnCtr {
+            margin: 0px;
+            display: flex;
+            justify-content: center;
+            padding-top: 20px;
+            padding-bottom: 20px;
+            background-color: black;
+        }
+
+        #addBtn {
+            padding-left: 20px;
+            padding-right: 20px;
+            padding-top: 10px;
+            padding-bottom: 10px;
+            border-radius: 10px;
+            border-color: lightgray;
+            border-width: 1px;
+            border-style: solid;
+            outline: none;
+            font-size: 20px;
+        }
+
+        #svgElement, #bgRect {
+            margin: 0px;
+        }
+
+        input, #removeBtn{
+            border: 1px solid;
+            padding: 5px;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="modal">
+    <div class="modal-content">
+        <span class="close-button">x</span>
+        <!-- <h1 id="modalText"></h1> -->
+        <div id="nodeForm">
+            <label for="nodeId">Node ID</label><br>
+            <input type="text" id="nodeId" name="nodeId"><br><br/>
+            <label for="nodeName">Node name</label><br>
+            <input type="text" id="nodeName" name="nodeName"><br><br/>
+            <label for="nodeDescription">Node description</label><br>
+            <input type="text" id="nodeDescription" name="nodeDescription"><br><br>
+            <input id="submitBtn" type="submit" value="Submit"> 
+        </div>
+        <div id="conditionForm">
+            <label for="start">Start</label><br>
+            <input type="text" id="start" name="start"><br><br>
+            <label for="end">End</label><br>
+            <input type="text" id="end" name="end"><br><br>
+            <label for="condition">Condition</label><br>
+            <input type="text" id="condition" name="condition"><br><br>
+            <input id="conditionFormSubmit" type="submit" value="Submit"> 
+            <button type="button" id="removeBtn">Delete</button>
+        </div>     
+    </div>
+</div>
+<svg xmlns="http://www.w3.org/2000/svg" id="svgElement">
+    <rect id="bgRect" width="100%" height="100%" fill="#000" /> 
+    <defs>
+        <marker id="arrow" markerWidth="10" markerHeight="10" refX="8.7" refY="3" 
+          orient="auto-start-reverse" markerUnits="strokeWidth">
+          <path d="M0,0 L0,6 L9,3 z" fill="#f00" />
+        </marker>
+   </defs>
+</svg>
+<div class="btnCtr">
+     <button id="addBtn">Add Edge</button> 
+</div>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.0.0/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.3.4/gsap.min.js"></script>
+<script>
+    window.onresize = function(){ location.reload(); }
+    const modal = document.querySelector(".modal");
+    const closeButton = document.querySelector(".close-button");
+    // let modalText = document.getElementById("modalText");
+
+    let jsonDetail = null;
+
+    let nodeForm = document.getElementById("nodeForm");
+    let conditionForm = document.getElementById("conditionForm");
+
+    let nodeId = document.getElementById("nodeId");
+    let nodeName = document.getElementById("nodeName");
+    let nodeDescription = document.getElementById("nodeDescription");
+    let submitBtn = document.getElementById("submitBtn");
+
+    let startElement = document.getElementById("start");
+    let endElement = document.getElementById("end");
+    let conditionElement = document.getElementById("condition");
+    let conditionFormSubmit = document.getElementById("conditionFormSubmit");
+
+    let addBtn = document.getElementById("addBtn");
+    let removeBtn = document.getElementById("removeBtn");
+
+    closeButton.addEventListener("click", toggleModal);
+
+    submitBtn.addEventListener("click", function(){
+        let id = nodeId.value;
+        let name = nodeName.value;
+        let description = nodeDescription.value;
+
+        let previousName = null;
+
+        let isDuplicateName =  jsonDetail.find(item => item.id != id && item.name === name);
+
+        if(isDuplicateName){
+            alert("Node with name alreadt exists");
+            return;
+        }
+
+        jsonDetail.forEach((item, index) => {
+            if(item.id == id){
+                previousName = item.name;
+                item.name = name;
+                item.description = description;
+            }
+        });
+        if(previousName !== null){
+            jsonDetail.forEach((item, index)=>{
+                item.next.forEach((nextItem, nextIndex) => {
+                    if(nextItem.name === previousName)
+                        nextItem.name = name;
+                })
+            })
+        }
+        console.log("Vishnu Priya");
+        console.log(jsonDetail);
+        var data = {
+            "detail": jsonDetail
+        };
+
+        data = JSON.stringify(data);
+        console.log(data);
+
+        fetch("http://localhost:8888/details",
+        {
+            method: "PUT",
+            body: data
+        })
+        .then(function(res){ location.reload();  }) 
+    });
+
+    conditionFormSubmit.addEventListener("click", function() {
+        nodeForm.style.display = "none";
+        let startValue = startElement.value;
+        let endValue = endElement.value;
+        let conditionValue = conditionElement.value;
+
+        if(startValue === ""){
+            alert("Start value is required");
+            return;
+        }
+        if(endValue === ""){
+            alert("End value is required");
+            return;
+        }
+        if(conditionValue === ""){
+            alert("Condition value is required");
+            return;
+        }
+
+        let foundEdge = false;
+        jsonDetail.forEach((item, index)=>{
+            item.next.forEach((nextItem, nextIndex) => {
+                if(startValue === item.name && nextItem.name === endValue){
+                    foundEdge = true;
+                    nextItem.condition = conditionValue;
+                }
+            })
+        })
+        if(!foundEdge){
+            alert("Heyyy");
+            jsonDetail.forEach((item, index)=>{
+                if(startValue === item.name){
+                    let objNew = {
+                        "name" : endValue,
+                        "condition" : conditionValue
+                    };
+                    item["next"].push(objNew);
+                }
+            })
+        }
+
+        var data = {
+            "detail": jsonDetail
+        };
+
+        data = JSON.stringify(data);
+        console.log(data);
+
+        fetch("http://localhost:8888/details",
+        {
+            method: "PUT",
+            body: data
+        })
+        .then(function(res){ location.reload();  }) 
+    });
+
+    removeBtn.addEventListener("click", function() {
+        nodeForm.style.display = "none";
+        let startValue = startElement.value;
+        let endValue = endElement.value;
+        let conditionValue = conditionElement.value;
+
+        if(startValue === ""){
+            alert("Start value is required");
+            return;
+        }
+        if(endValue === ""){
+            alert("End value is required");
+            return;
+        }
+
+        let startIndex = -1;
+        let endIndex = -1;
+        jsonDetail.forEach((item, index)=>{
+            item.next.forEach((nextItem, nextIndex) => {
+                if(startValue === item.name && nextItem.name === endValue){
+                    startIndex = index,
+                    endIndex = nextIndex;
+                }
+            })
+        })
+        if(startIndex != -1 && endIndex != -1){
+            jsonDetail[startIndex]["next"].splice(endIndex, 1);
+        }
+        console.log(jsonDetail);
+        var data = {
+            "detail": jsonDetail
+        };
+
+        data = JSON.stringify(data);
+        console.log(data);
+
+        fetch("http://localhost:8888/details",
+        {
+            method: "PUT",
+            body: data
+        })
+        .then(function(res){ location.reload();  })
+    })
+
+    function toggleModal() {
+        modal.classList.toggle("show-modal");
+    }
+
+    function displayAlert(msg)
+    {
+        //modalText.innerHTML = msg.name + "<br/>" + msg.description;
+        nodeId.value = msg.id;
+        nodeName.value = msg.name;
+        nodeDescription.value = msg.description;
+        modal.classList.toggle("show-modal");
+        conditionForm.style.display = "none";
+        nodeForm.style.display = "block";
+        nodeId.readOnly = true;
+        nodeId.style.backgroundColor = "lightgray";
+    }
+
+    function conditionClicked(start, condition, end)
+    {
+        startElement.value = start;
+        endElement.value = end;
+        conditionElement.value = condition;
+        modal.classList.toggle("show-modal");
+        nodeForm.style.display = "none";
+        conditionForm.style.display = "block";
+        startElement.readOnly = true;
+        endElement.readOnly = true;
+        startElement.style.backgroundColor = "lightgray";
+        endElement.style.backgroundColor = "lightgray";
+    }
+
+    addBtn.addEventListener("click", function() {
+        startElement.value = "";
+        endElement.value = "";
+        conditionElement.value = "";
+        modal.classList.toggle("show-modal");
+        nodeForm.style.display = "none";
+        conditionForm.style.display = "block";
+        startElement.readOnly = false;
+        endElement.readOnly = false;
+        startElement.style.backgroundColor = "transparent";
+        endElement.style.backgroundColor = "transparent";
+    })
+
+    $(function () {
+        const svg = document.querySelector("svg");
+
+        // variable for the namspace
+        const svgns = "http://www.w3.org/2000/svg";
+        fetch('http://localhost:8888/details')
+        .then(response => response.json())
+        .then(jsonData => {
+            const rootId = jsonData[0]["root"];
+            jsonData = jsonData[0]["detail"];
+            //console.log(jsonData);
+
+            jsonDetail = jsonData;
+
+            //let setKeys = new Set();
+            //let setValues = new Set();
+
+            let map = new Map();
+            
+            let root = null;
+            jsonData.forEach((item, index) => {
+                let value = {...item, coordinates:{x:-1,y:-1}, level: 0}
+                map.set(item["name"], value);
+                if(item["id"] == rootId)
+                    root = item["name"];
+                /*setKeys.add(item["name"]);
+                item["next"].forEach((item ,index) => {
+                    setValues.add(item["name"]);
+                });*/
+            });
+
+            //console.log(setKeys);
+            //console.log(setValues);
+            
+            //let result = new Set([...setKeys].filter(x => !setValues.has(x)));
+            //const [root] = result;
+
+            const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0)
+            console.log("Vishnu = " + document.documentElement.clientWidth);
+            console.log("Priya = " + window.innerWidth);
+            console.log("Viewpoert width = " + vw);
+
+            let circleDiameter = 100;
+            let circleRadius = circleDiameter / 2;
+
+            let spaceWidth = circleDiameter / 2;
+
+            
+            let startCoordinateX = vw/2; ///2; // + (2.65*circleDiameter);
+            let startCoordinateY = 175;
+
+            var queue = [];
+            var set = new Set();
+            
+            set.add(root);
+            queue.push(root);
+            queue.push(null);
+            let count = 0;
+            let noOfElements = 1
+            let start = startCoordinateX;
+            while(queue.length != 0)
+            {
+                let key = queue.shift();
+                //console.log(key);
+                if(key == null){
+                    if(queue.length != 0){
+                        queue.push(null);
+                        count = count + 2;
+                        noOfElements = queue.length;
+                        start = startCoordinateX - ((noOfElements-1)*circleRadius);
+                        //console.log(start);
+                    }
+                }
+                else {
+
+                    let newCircle = document.createElementNS(svgns, "circle");
+
+                    gsap.set(newCircle, {
+                    attr: {
+                        cx: start,
+                        cy: startCoordinateY + (circleDiameter*count),
+                        r: circleRadius,
+                        fill: "#5cceee",
+                        class: "target"
+                    }
+                    });    
+                    newCircle.addEventListener('click', function() { displayAlert(map.get(key)) }, false);
+                    
+                    svg.appendChild(newCircle);
+                    
+                    let txt = document.createElementNS(svgns, "text");
+                    
+                    if(key.length*16 > circleDiameter) {
+                        txt.setAttribute("textLength", circleDiameter);
+                        txt.setAttribute("lengthAdjust", "spacingAndGlyphs");
+                    }
+
+                    txt.textContent = key;
+                    
+                    gsap.set(txt, {
+                        x: start,
+                        y: startCoordinateY + (circleDiameter*count)
+                    });
+                    
+                    txt.addEventListener('click', function() { displayAlert(map.get(key)) }, false);
+                    
+                    svg.appendChild(txt);
+                    
+                    let value = map.get(key);
+
+                    value.coordinates.x = start;
+                    value.coordinates.y = startCoordinateY + (circleDiameter*count);
+                    value.level = count/2;
+
+                    map.set(key, value);
+
+                    start = start + circleDiameter + spaceWidth; 
+
+                    value["next"].forEach(element => {
+                        if(!set.has(element["name"])){
+                            set.add(element["name"]);
+                            queue.push(element["name"]);
+                        }
+                    });
+                }
+            }
+
+            let height = (circleDiameter*count) + startCoordinateY*2;
+            //document.getElementById('svgElement').style.height = height;
+            document.getElementById('svgElement').setAttribute('viewBox', ' 0 0 ' + window.screen.width + ' ' + height);
+            console.log("Hai = " + window.screen.width);
+            //document.getElementById('svgElement').setAttribute('width', '100%');
+
+            //console.log(map);
+            for(const [key, value] of map.entries())
+            {
+                for(let children of value["next"]){
+                    let value1 = map.get(key);
+                    let value2 = map.get(children["name"]);
+                    let startCoordinates = value1.coordinates;
+                    let endCoordinates = value2.coordinates;
+
+                    let level1 = value1.level;
+                    let level2 = value2.level;
+
+                    //if(level1 > level2)
+                    //    console.log("L1 = " + level1 + " L2 = " + level2);
+                    let x1_coordinates = level1 < level2 ? startCoordinates.x : level1 > level2 ? startCoordinates.x : startCoordinates.x < endCoordinates.x ? startCoordinates.x + circleRadius: startCoordinates.x - circleRadius;
+                    let x2_coordinates = level1 < level2 ? endCoordinates.x : level1 > level2 ? endCoordinates.x : startCoordinates.x < endCoordinates.x ? endCoordinates.x - circleRadius: endCoordinates.x + circleRadius;
+                    let y1_coordinates = level1 < level2 ? startCoordinates.y + circleRadius : level1 > level2 ? startCoordinates.y - circleRadius : startCoordinates.x < endCoordinates.x ? startCoordinates.y: startCoordinates.y ;
+                    let y2_coordinates = level1 < level2 ? endCoordinates.y - circleRadius : level1 > level2 ? endCoordinates.y + circleRadius: startCoordinates.x < endCoordinates.x ? endCoordinates.y: endCoordinates.y;
+                   
+
+                    let id = key + "_" + children["condition"] + "_" + children["name"];
+                    let dAttribute = null;
+                   
+                    let path = document.createElementNS(svgns, "path");
+
+                    if(x1_coordinates > x2_coordinates) {
+                        dAttribute = "M " + x2_coordinates + " " + y2_coordinates + " L " + x1_coordinates + " " + y1_coordinates;
+                        gsap.set(path, {
+                            attr: { d: dAttribute, class: "reverseArrow", id: id}
+                        });
+                    }
+                    else {
+                        dAttribute =  "M " + x1_coordinates + " " + y1_coordinates + " L " + x2_coordinates + " " + y2_coordinates;
+                        gsap.set(path, {
+                            attr: { d: dAttribute, class: "arrow", id: id}
+                        });
+                    }
+
+                    svg.appendChild(path);
+
+                    var dynamictext = document.createElementNS(svgns, "text");
+                    
+                    var textpath = document.createElementNS(svgns, "textPath");
+                    var text = children["condition"];
+
+                    dynamictext.setAttribute('dy', -10);
+                    let lengthOfLine = Math.sqrt(Math.pow((x2_coordinates - x1_coordinates),2) + Math.pow((y2_coordinates - y1_coordinates),2));
+                    
+                    
+                    //console.log("Text = " + text + " Length of line = " + lengthOfLine + " Text length = " + text.length);
+                    if(text.length*16 > lengthOfLine) {
+                        dynamictext.setAttribute("textLength", lengthOfLine);
+                        dynamictext.setAttribute("lengthAdjust", "spacingAndGlyphs");
+                    }
+
+                    textpath.id="textpath" + id;
+                    textpath.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', "#"+id);
+                    textpath.setAttribute("startOffset","50%");
+                    textpath.setAttribute("text-anchor", "middle");
+                    textpath.setAttribute("fill","red");
+                    //textpath.setAttribute("textLength", );
+                    
+                    textpath.textContent = text;
+                    svg.appendChild(dynamictext);
+                    dynamictext.appendChild(textpath);
+
+                    textpath.addEventListener('click', function() { conditionClicked(key, children["condition"], children["name"])}, false);
+                    
+                }
+            }
+            //console.log(map);
+            });
+
+    });
+</script>
+
+</body>
+</html>
+
